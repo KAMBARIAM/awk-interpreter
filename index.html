@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWK Expression Interpreter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: linear-gradient(135deg, #2d1b4e 0%, #4a1d5a 25%, #5a2d5a 50%, #4a1d5a 75%, #2d1b4e 100%);
+            min-height: 100vh;
+            color: #e8e3f3;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 36px;
+            color: #f0ebff;
+        }
+
+        .header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 12px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+            background: linear-gradient(135deg, #e8e3f3, #c9a9dd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.85;
+            color: #c9a9dd;
+        }
+
+        .expression-panel {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(15px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+            border: 1px solid rgba(201, 169, 221, 0.2);
+            margin-bottom: 24px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, rgba(74, 29, 90, 0.8), rgba(90, 45, 90, 0.6));
+            border-radius: 10px;
+            border: 1px solid rgba(201, 169, 221, 0.15);
+        }
+
+        .panel-header h3 {
+            color: #c9a9dd;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .panel-header .icon {
+            font-size: 1.4rem;
+            color: #7c3aed;
+        }
+
+        .input-output-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .examples-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(15px);
+            border-radius: 16px;
+            padding: 0;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+            border: 1px solid rgba(201, 169, 221, 0.2);
+            overflow: hidden;
+        }
+
+        .panel-content {
+            padding: 20px;
+        }
+
+        textarea, input {
+            width: 100%;
+            border: 2px solid rgba(201, 169, 221, 0.3);
+            border-radius: 10px;
+            padding: 14px;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            resize: vertical;
+            background: rgba(255, 255, 255, 0.9);
+            color: #2d3748;
+        }
+
+        textarea:focus, input:focus {
+            outline: none;
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15);
+            background: rgba(255, 255, 255, 1);
+        }
+
+        textarea::placeholder, input::placeholder {
+            color: rgba(45, 55, 72, 0.5);
+        }
+
+        #inputData {
+            height: 340px;
+        }
+
+        #awkExpression {
+            height: 90px;
+            margin-bottom: 20px;
+        }
+
+        .delimiter-selector {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .delimiter-selector label {
+            font-weight: 600;
+            color: #2a5298;
+            font-size: 14px;
+        }
+
+        .delimiter-selector select {
+            padding: 8px 12px;
+            border: 2px solid rgba(201, 169, 221, 0.3);
+            border-radius: 8px;
+            font-family: inherit;
+            background: rgba(255, 255, 255, 0.9);
+            color: #2d3748;
+            font-size: 14px;
+        }
+
+        .delimiter-selector select:focus {
+            border-color: #7c3aed;
+            outline: none;
+        }
+
+        .delimiter-selector input {
+            width: 160px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            flex: 1;
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(124, 58, 237, 0.4);
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #clearBtn {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        #clearBtn:hover {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 8px 20px rgba(220, 38, 38, 0.4);
+        }
+
+        #output {
+            background: rgba(16, 8, 32, 0.9);
+            color: #00ff88;
+            font-family: 'Courier New', monospace;
+            height: 340px;
+            padding: 16px;
+            border-radius: 0;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 13px;
+            line-height: 1.5;
+            border: 2px solid rgba(0, 255, 136, 0.2);
+            margin: 0;
+        }
+
+        .examples {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(15px);
+            border-radius: 16px;
+            padding: 0;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+            border: 1px solid rgba(201, 169, 221, 0.2);
+            overflow: hidden;
+        }
+
+        .examples-content {
+            padding: 20px;
+        }
+
+        .example {
+            background: rgba(74, 29, 90, 0.4);
+            border-left: 4px solid #7c3aed;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 0 10px 10px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(201, 169, 221, 0.1);
+        }
+
+        .example:hover {
+            background: rgba(90, 45, 90, 0.6);
+            transform: translateX(6px);
+            border-color: rgba(201, 169, 221, 0.3);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+        }
+
+        .example-title {
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .example-code {
+            font-family: 'Courier New', monospace;
+            background: rgba(16, 8, 32, 0.8);
+            color: #00ff88;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 8px 0;
+            font-size: 12px;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+
+        .example-description {
+            color: #4a5568;
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .error {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(45, 27, 78, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(201, 169, 221, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(201, 169, 221, 0.7);
+        }
+
+        @media (max-width: 768px) {
+            .input-output-section, .examples-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2.2rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+
+            .delimiter-selector {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .container {
+                padding: 16px;
+            }
+        }
+
+        /* Professional status indicators */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AWK Expression Interpreter</h1>
+            <p>Professional text processing with AWK-like expressions</p>
+        </div>
+
+        <!-- Expression Panel -->
+        <div class="expression-panel">
+            <textarea id="awkExpression" placeholder="Enter AWK expression (e.g., {print $1, $3})"></textarea>
+            
+            <div class="delimiter-selector">
+                <label for="delimiter">Field Delimiter:</label>
+                <select id="delimiter">
+                    <option value="whitespace">Whitespace (default)</option>
+                    <option value=",">Comma (CSV)</option>
+                    <option value="\t">Tab (TSV)</option>
+                    <option value=";">Semicolon</option>
+                    <option value="|">Pipe</option>
+                    <option value=":">Colon</option>
+                    <option value="custom">Custom...</option>
+                </select>
+                <input type="text" id="customDelimiter" placeholder="Enter custom delimiter">
+            </div>
+            
+            <div class="button-group">
+                <button onclick="executeAwk()">▶ Execute Expression</button>
+                <button id="clearBtn" onclick="clearAll()">🗑 Clear All</button>
+            </div>
+        </div>
+
+        <!-- Input and Output Section -->
+        <div class="input-output-section">
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="icon">📝</span>
+                    <h3>Input Data</h3>
+                    <div style="margin-left: auto;">
+                        <input type="file" id="fileInput" accept=".txt,.csv,.tsv" style="display: none;" onchange="loadFile(event)">
+                        <button onclick="document.getElementById('fileInput').click()" style="padding: 6px 12px; font-size: 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">📁 Load File</button>
+                    </div>
+                </div>
+                <div class="panel-content">
+                    <textarea id="inputData" placeholder="Enter your text data here...
+
+Example:
+John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer"></textarea>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="icon">📤</span>
+                    <h3>Output Console</h3>
+                </div>
+                <div id="output">Ready to process your AWK expressions...</div>
+            </div>
+        </div>
+
+        <!-- Examples Section -->
+        <div class="examples-section">
+            <div class="examples">
+                <div class="panel-header">
+                    <span class="icon">💡</span>
+                    <h3>Basic AWK Examples</h3>
+                </div>
+                <div class="examples-content">
+                    <div class="example" onclick="loadExample(1)">
+                        <div class="example-title">Print specific columns</div>
+                        <div class="example-code">{print $1, $3}</div>
+                        <div class="example-description">Prints the first and third columns of each line</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(2)">
+                        <div class="example-title">Filter and print</div>
+                        <div class="example-code">$2 > 25 {print $1, "is over 25"}</div>
+                        <div class="example-description">Prints name and message for people over 25</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(3)">
+                        <div class="example-title">Count lines</div>
+                        <div class="example-code">END {print "Total lines:", NR}</div>
+                        <div class="example-description">Counts and prints the total number of lines</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(4)">
+                        <div class="example-title">String matching</div>
+                        <div class="example-code">/Engineer/ {print $1, "works in engineering"}</div>
+                        <div class="example-description">Finds lines containing "Engineer" and prints a message</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(5)">
+                        <div class="example-title">Find maximum value</div>
+                        <div class="example-code">{if($2 > max) max = $2} END {print "Max age:", max}</div>
+                        <div class="example-description">Finds the maximum value in the second column</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(6)">
+                        <div class="example-title">Format output</div>
+                        <div class="example-code">{print "Name:", $1, "| Age:", $2, "| Job:", $3}</div>
+                        <div class="example-description">Formats output with labels and separators</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(7)">
+                        <div class="example-title">Multiple conditions</div>
+                        <div class="example-code">$2 >= 25 && $3 == "Engineer" {print $1, "is a senior engineer"}</div>
+                        <div class="example-description">Uses multiple conditions with AND operator</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(8)">
+                        <div class="example-title">Line numbers</div>
+                        <div class="example-code">{print NR ":", $0}</div>
+                        <div class="example-description">Prints line number followed by the entire line</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(9)">
+                        <div class="example-title">Skip header line</div>
+                        <div class="example-code">NR > 1 {print $1, $2}</div>
+                        <div class="example-description">Skips the first line (header) and processes the rest</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(10)">
+                        <div class="example-title">Filter by range</div>
+                        <div class="example-code">$2 >= 25 && $2 <= 30 {print $1, "is in 25-30 age range"}</div>
+                        <div class="example-description">Filters records within a specific range</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(11)">
+                        <div class="example-title">Print with conditions</div>
+                        <div class="example-code">length($1) > 4 {print $1, "has long name"}</div>
+                        <div class="example-description">Prints records where first field has more than 4 characters</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(12)">
+                        <div class="example-title">Pattern matching</div>
+                        <div class="example-code">/^J/ {print $1, "starts with J"}</div>
+                        <div class="example-description">Finds lines starting with letter "J"</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="examples">
+                <div class="panel-header">
+                    <span class="icon">📊</span>
+                    <h3>Delimiter-Specific Examples</h3>
+                </div>
+                <div class="examples-content">
+                    <div class="example" onclick="loadExample(13)">
+                        <div class="example-title">CSV Processing</div>
+                        <div class="example-code">{print $1, $3}</div>
+                        <div class="example-description">Process CSV data with comma delimiter</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(14)">
+                        <div class="example-title">TSV Processing</div>
+                        <div class="example-code">NR > 1 {print $1, $3}</div>
+                        <div class="example-description">Process Tab-separated values, skip header</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(15)">
+                        <div class="example-title">Pipe-delimited data</div>
+                        <div class="example-code">$4 > 70000 {print $1, "has high salary"}</div>
+                        <div class="example-description">Process pipe-separated salary data</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(16)">
+                        <div class="example-title">CSV filtering</div>
+                        <div class="example-code">NR > 1 && $3 == "Engineer" {print $1, $4}</div>
+                        <div class="example-description">Filter CSV to show only engineers and their salaries</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(17)">
+                        <div class="example-title">TSV data filtering</div>
+                        <div class="example-code">NR > 1 && $3 == "Developer" {print $1, $2}</div>
+                        <div class="example-description">Filter TSV to show only developers</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(18)">
+                        <div class="example-title">Semicolon-separated</div>
+                        <div class="example-code">{if($2 > max_age) {max_age = $2; oldest = $1}} END {print oldest, "is oldest"}</div>
+                        <div class="example-description">Find oldest person in semicolon-separated data</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(19)">
+                        <div class="example-title">Log file processing</div>
+                        <div class="example-code">/ERROR/ {print NR ":", $0}</div>
+                        <div class="example-description">Show line numbers for ERROR entries in log files</div>
+                    </div>
+
+                    <div class="example" onclick="loadExample(20)">
+                        <div class="example-title">Multi-field extraction</div>
+                        <div class="example-code">NR > 1 {print $1 "," $2 "," $4}</div>
+                        <div class="example-description">Extract specific fields and format as CSV</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple AWK interpreter
+        class AWKInterpreter {
+            constructor() {
+                this.variables = {};
+                this.NR = 0; // Number of records
+                this.NF = 0; // Number of fields
+                this.output = [];
+                this.delimiter = null; // Field separator
+            }
+
+            reset() {
+                this.variables = {};
+                this.NR = 0;
+                this.NF = 0;
+                this.output = [];
+            }
+
+            setDelimiter(delimiter) {
+                this.delimiter = delimiter;
+            }
+
+            splitFields(line) {
+                if (!this.delimiter || this.delimiter === 'whitespace') {
+                    // Default whitespace splitting
+                    return line.trim().split(/\s+/);
+                } else if (this.delimiter === '\t') {
+                    // Tab delimiter
+                    return line.split('\t');
+                } else {
+                    // Custom delimiter
+                    return line.split(this.delimiter);
+                }
+            }
+
+            parseExpression(expression) {
+                // Remove comments
+                expression = expression.replace(/#.*$/gm, '');
+                
+                // Parse different parts of AWK expression
+                const beginMatch = expression.match(/BEGIN\s*{([^}]*)}/);
+                const endMatch = expression.match(/END\s*{([^}]*)}/);
+                const mainMatch = expression.match(/^(?!.*BEGIN)(?!.*END)(.*)$/m);
+                
+                return {
+                    begin: beginMatch ? beginMatch[1].trim() : null,
+                    main: mainMatch ? mainMatch[1].trim() : null,
+                    end: endMatch ? endMatch[1].trim() : null
+                };
+            }
+
+            executeCommand(command, fields) {
+                if (!command) return;
+                
+                // Split multiple commands separated by semicolons
+                const commands = command.split(';').map(cmd => cmd.trim()).filter(cmd => cmd);
+                
+                for (let cmd of commands) {
+                    // Handle array increment operations (e.g., count[$3]++)
+                    const arrayIncrementMatch = cmd.match(/(\w+)\[([^\]]+)\]\s*\+\+/);
+                    if (arrayIncrementMatch) {
+                        const [, arrayName, indexExpr] = arrayIncrementMatch;
+                        const index = this.evaluateExpression(indexExpr, fields);
+                        const indexKey = String(index).replace(/"/g, '');
+                        
+                        if (!this.variables[arrayName]) {
+                            this.variables[arrayName] = {};
+                        }
+                        if (!this.variables[arrayName][indexKey]) {
+                            this.variables[arrayName][indexKey] = 0;
+                        }
+                        this.variables[arrayName][indexKey]++;
+                        continue;
+                    }
+                    
+                    // Handle print statements
+                    if (cmd.includes('print')) {
+                        const printMatch = cmd.match(/print\s+(.*?)(?:\s*$|\s*;|\s*})/);
+                        if (printMatch) {
+                            let printArgs = printMatch[1];
+                            
+                            // Replace field references
+                            printArgs = printArgs.replace(/\$(\d+)/g, (match, num) => {
+                                const fieldNum = parseInt(num);
+                                if (fieldNum === 0) return fields.join(' ');
+                                return fields[fieldNum - 1] || '';
+                            });
+                            
+                            // Replace NR, NF
+                            printArgs = printArgs.replace(/\b(NR|NF)\b/g, (match) => {
+                                if (match === 'NR') return this.NR;
+                                if (match === 'NF') return this.NF;
+                                return match;
+                            });
+                            
+                            // Replace array access (e.g., count["Engineer"])
+                            printArgs = printArgs.replace(/(\w+)\[([^\]]+)\]/g, (match, arrayName, indexExpr) => {
+                                if (this.variables[arrayName] && typeof this.variables[arrayName] === 'object') {
+                                    const index = indexExpr.replace(/"/g, '');
+                                    return this.variables[arrayName][index] || 0;
+                                }
+                                return 0;
+                            });
+                            
+                            // Replace simple variables
+                            for (let [key, value] of Object.entries(this.variables)) {
+                                if (typeof value !== 'object') {
+                                    printArgs = printArgs.replace(new RegExp('\\b' + key + '\\b', 'g'), 
+                                        typeof value === 'number' ? value.toString() : value);
+                                }
+                            }
+                            
+                            // Handle string literals
+                            printArgs = printArgs.replace(/"/g, '');
+                            
+                            // Evaluate mathematical expressions
+                            try {
+                                // Handle division operations specifically
+                                printArgs = printArgs.replace(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/g, (match, a, b) => {
+                                    return parseFloat(a) / parseFloat(b);
+                                });
+                            } catch (e) {
+                                // Keep original if evaluation fails
+                            }
+                            
+                            this.output.push(printArgs.replace(/,/g, ' '));
+                        }
+                        continue;
+                    }
+                    
+                    // Handle variable assignments with operators (e.g., sum += $2)
+                    const assignMatch = cmd.match(/(\w+)\s*([\+\-\*\/]?)=\s*(.+)/);
+                    if (assignMatch) {
+                        const [, varName, operator, value] = assignMatch;
+                        let evalValue = this.evaluateExpression(value, fields);
+                        
+                        if (operator) {
+                            const currentValue = this.variables[varName] || 0;
+                            switch (operator) {
+                                case '+': evalValue = currentValue + evalValue; break;
+                                case '-': evalValue = currentValue - evalValue; break;
+                                case '*': evalValue = currentValue * evalValue; break;
+                                case '/': evalValue = currentValue / evalValue; break;
+                            }
+                        }
+                        
+                        this.variables[varName] = evalValue;
+                        continue;
+                    }
+                    
+                    // Handle simple variable increment (e.g., count++)
+                    const incrementMatch = cmd.match(/(\w+)\s*\+\+/);
+                    if (incrementMatch) {
+                        const varName = incrementMatch[1];
+                        this.variables[varName] = (this.variables[varName] || 0) + 1;
+                        continue;
+                    }
+                    
+                    // Handle if statements
+                    const ifMatch = cmd.match(/if\s*\(([^)]+)\)\s*(.+)/);
+                    if (ifMatch) {
+                        const [, condition, action] = ifMatch;
+                        if (this.checkCondition(condition, fields)) {
+                            this.executeCommand(action, fields);
+                        }
+                        continue;
+                    }
+                }
+            }
+
+            evaluateExpression(expr, fields) {
+                if (!expr) return 0;
+                
+                // Replace field references
+                expr = expr.replace(/\$(\d+)/g, (match, num) => {
+                    const fieldNum = parseInt(num);
+                    if (fieldNum === 0) return `"${fields.join(' ')}"`;
+                    const value = fields[fieldNum - 1] || '';
+                    // Return as number if it's numeric, otherwise as quoted string
+                    return isNaN(parseFloat(value)) ? `"${value}"` : parseFloat(value);
+                });
+                
+                // Replace NR, NF
+                expr = expr.replace(/\bNR\b/g, this.NR);
+                expr = expr.replace(/\bNF\b/g, this.NF);
+                
+                // Replace array access
+                expr = expr.replace(/(\w+)\[([^\]]+)\]/g, (match, arrayName, indexExpr) => {
+                    if (this.variables[arrayName] && typeof this.variables[arrayName] === 'object') {
+                        const index = indexExpr.replace(/"/g, '');
+                        return this.variables[arrayName][index] || 0;
+                    }
+                    return 0;
+                });
+                
+                // Replace simple variables
+                for (let [key, value] of Object.entries(this.variables)) {
+                    if (typeof value !== 'object') {
+                        expr = expr.replace(new RegExp('\\b' + key + '\\b', 'g'), value);
+                    }
+                }
+                
+                try {
+                    // Clean up the expression and evaluate
+                    expr = expr.replace(/"/g, '');
+                    const result = eval(expr);
+                    return isNaN(result) ? expr : result;
+                } catch (e) {
+                    // If evaluation fails, try to return as number or string
+                    const numValue = parseFloat(expr);
+                    return isNaN(numValue) ? expr : numValue;
+                }
+            }
+
+            checkCondition(condition, fields) {
+                if (!condition || condition === '1') return true;
+                
+                // Handle regex patterns
+                const regexMatch = condition.match(/^\/(.+)\/$/);
+                if (regexMatch) {
+                    const regex = new RegExp(regexMatch[1], 'i');
+                    return regex.test(fields.join(' '));
+                }
+                
+                // Handle logical operators (&&, ||)
+                if (condition.includes('&&')) {
+                    const parts = condition.split('&&');
+                    return parts.every(part => this.checkCondition(part.trim(), fields));
+                }
+                
+                if (condition.includes('||')) {
+                    const parts = condition.split('||');
+                    return parts.some(part => this.checkCondition(part.trim(), fields));
+                }
+                
+                // Handle comparisons
+                const compMatch = condition.match(/(.+?)\s*(==|!=|>=|<=|>|<)\s*(.+)/);
+                if (compMatch) {
+                    const [, left, op, right] = compMatch;
+                    const leftVal = this.evaluateExpression(left, fields);
+                    const rightVal = this.evaluateExpression(right, fields);
+                    
+                    const leftNum = parseFloat(leftVal);
+                    const rightNum = parseFloat(rightVal);
+                    
+                    if (!isNaN(leftNum) && !isNaN(rightNum)) {
+                        switch (op) {
+                            case '==': return leftNum === rightNum;
+                            case '!=': return leftNum !== rightNum;
+                            case '>': return leftNum > rightNum;
+                            case '<': return leftNum < rightNum;
+                            case '>=': return leftNum >= rightNum;
+                            case '<=': return leftNum <= rightNum;
+                        }
+                    } else {
+                        // String comparison
+                        const leftStr = String(leftVal).replace(/"/g, '');
+                        const rightStr = String(rightVal).replace(/"/g, '');
+                        switch (op) {
+                            case '==': return leftStr === rightStr;
+                            case '!=': return leftStr !== rightStr;
+                            case '>': return leftStr > rightStr;
+                            case '<': return leftStr < rightStr;
+                            case '>=': return leftStr >= rightStr;
+                            case '<=': return leftStr <= rightStr;
+                        }
+                    }
+                }
+                
+                return true;
+            }
+
+            execute(data, expression, delimiter = null) {
+                this.reset();
+                this.setDelimiter(delimiter);
+                const lines = data.trim().split('\n').filter(line => line.trim());
+                const parsed = this.parseExpression(expression);
+                
+                try {
+                    // Execute BEGIN block
+                    if (parsed.begin) {
+                        this.executeCommand(parsed.begin, []);
+                    }
+                    
+                    // Process each line
+                    for (let line of lines) {
+                        this.NR++;
+                        const fields = this.splitFields(line);
+                        this.NF = fields.length;
+                        
+                        if (parsed.main) {
+                            // Check for condition and action
+                            const conditionActionMatch = parsed.main.match(/^(.*?)\s*{(.*)}$/);
+                            if (conditionActionMatch) {
+                                const [, condition, action] = conditionActionMatch;
+                                if (this.checkCondition(condition.trim(), fields)) {
+                                    this.executeCommand(action, fields);
+                                }
+                            } else if (parsed.main.includes('print') || parsed.main.includes('=')) {
+                                // Direct command
+                                this.executeCommand(parsed.main, fields);
+                            }
+                        }
+                    }
+                    
+                    // Execute END block
+                    if (parsed.end) {
+                        this.executeCommand(parsed.end, []);
+                    }
+                    
+                    return this.output.join('\n') || 'No output generated';
+                    
+                } catch (error) {
+                    return `Error: ${error.message}`;
+                }
+            }
+        }
+
+        const interpreter = new AWKInterpreter();
+
+        function executeAwk() {
+            const inputData = document.getElementById('inputData').value;
+            const awkExpression = document.getElementById('awkExpression').value;
+            const delimiterSelect = document.getElementById('delimiter');
+            const customDelimiterInput = document.getElementById('customDelimiter');
+            const outputDiv = document.getElementById('output');
+            
+            if (!inputData.trim() || !awkExpression.trim()) {
+                outputDiv.innerHTML = '<span style="color: #ff6b6b;">Please provide both input data and AWK expression.</span>';
+                return;
+            }
+            
+            // Get delimiter
+            let delimiter = delimiterSelect.value;
+            if (delimiter === 'custom') {
+                delimiter = customDelimiterInput.value || ',';
+            }
+            
+            const result = interpreter.execute(inputData, awkExpression, delimiter);
+            outputDiv.textContent = result;
+        }
+
+        function clearAll() {
+            document.getElementById('inputData').value = '';
+            document.getElementById('awkExpression').value = '';
+            document.getElementById('output').textContent = 'Ready to process your AWK expressions...';
+        }
+
+        function loadFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('inputData').value = e.target.result;
+                
+                // Auto-detect delimiter based on file extension
+                const fileName = file.name.toLowerCase();
+                const delimiterSelect = document.getElementById('delimiter');
+                
+                if (fileName.endsWith('.csv')) {
+                    delimiterSelect.value = ',';
+                } else if (fileName.endsWith('.tsv')) {
+                    delimiterSelect.value = '\t';
+                } else {
+                    delimiterSelect.value = 'whitespace';
+                }
+                
+                toggleCustomDelimiter();
+            };
+            reader.readAsText(file);
+        }
+
+        function loadExample(num) {
+            const examples = {
+                1: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester`,
+                    expression: '{print $1, $3}',
+                    delimiter: 'whitespace'
+                },
+                2: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester`,
+                    expression: '$2 > 25 {print $1, "is over 25"}',
+                    delimiter: 'whitespace'
+                },
+                3: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester`,
+                    expression: 'END {print "Total lines:", NR}',
+                    delimiter: 'whitespace'
+                },
+                4: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester`,
+                    expression: '/Engineer/ {print $1, "works in engineering"}',
+                    delimiter: 'whitespace'
+                },
+                5: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester
+Mike 35 Manager`,
+                    expression: '{if($2 > max) max = $2} END {print "Max age:", max}',
+                    delimiter: 'whitespace'
+                },
+                6: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer`,
+                    expression: '{print "Name:", $1, "| Age:", $2, "| Job:", $3}',
+                    delimiter: 'whitespace'
+                },
+                7: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester
+Mike 26 Engineer
+Sarah 24 Engineer`,
+                    expression: '$2 >= 25 && $3 == "Engineer" {print $1, "is a senior engineer"}',
+                    delimiter: 'whitespace'
+                },
+                8: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester`,
+                    expression: '{print NR ":", $0}',
+                    delimiter: 'whitespace'
+                },
+                9: {
+                    data: `Name Age Job
+John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester`,
+                    expression: 'NR > 1 {print $1, $2}',
+                    delimiter: 'whitespace'
+                },
+                10: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester`,
+                    expression: '$2 >= 25 && $2 <= 30 {print $1, "is in 25-30 age range"}',
+                    delimiter: 'whitespace'
+                },
+                11: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester`,
+                    expression: 'length($1) > 4 {print $1, "has long name"}',
+                    delimiter: 'whitespace'
+                },
+                12: {
+                    data: `John 25 Engineer
+Jane 30 Designer
+Bob 28 Developer
+Alice 27 Tester`,
+                    expression: '/^J/ {print $1, "starts with J"}',
+                    delimiter: 'whitespace'
+                },
+                13: {
+                    data: `Name,Age,Job,Salary
+John,25,Engineer,75000
+Jane,30,Designer,65000
+Bob,28,Developer,80000
+Alice,27,Tester,55000`,
+                    expression: '{print $1, $3}',
+                    delimiter: ','
+                },
+                14: {
+                    data: `Name	Age	Job	Salary
+John	25	Engineer	75000
+Jane	30	Designer	65000
+Bob	28	Developer	80000
+Alice	27	Tester	55000`,
+                    expression: 'NR > 1 {print $1, $3}',
+                    delimiter: '\t'
+                },
+                15: {
+                    data: `John|25|Engineer|75000
+Jane|30|Designer|65000
+Bob|28|Developer|80000
+Alice|27|Tester|55000
+Mike|35|Manager|95000`,
+                    expression: '$4 > 70000 {print $1, "has high salary"}',
+                    delimiter: '|'
+                },
+                16: {
+                    data: `Name,Age,Job,Salary
+John,25,Engineer,75000
+Jane,30,Designer,65000
+Bob,28,Developer,80000
+Alice,27,Tester,55000
+Mike,35,Manager,95000`,
+                    expression: 'NR > 1 && $3 == "Engineer" {print $1, $4}',
+                    delimiter: ','
+                },
+                17: {
+                    data: `Name	Age	Job	Salary
+John	25	Engineer	75000
+Jane	30	Designer	65000
+Bob	28	Developer	80000
+Alice	27	Tester	55000
+Sarah	29	Developer	78000`,
+                    expression: 'NR > 1 && $3 == "Developer" {print $1, $2}',
+                    delimiter: '\t'
+                },
+                18: {
+                    data: `John;25;Engineer;75000
+Jane;30;Designer;65000
+Bob;28;Developer;80000
+Alice;27;Tester;55000
+Mike;35;Manager;95000`,
+                    expression: '{if($2 > max_age) {max_age = $2; oldest = $1}} END {print oldest, "is oldest"}',
+                    delimiter: ';'
+                },
+                19: {
+                    data: `2024-01-01:INFO:System started
+2024-01-01:ERROR:Database connection failed
+2024-01-01:INFO:Retrying connection
+2024-01-01:ERROR:Connection timeout
+2024-01-01:INFO:System running`,
+                    expression: '/ERROR/ {print NR ":", $0}',
+                    delimiter: ':'
+                },
+                20: {
+                    data: `Name,Age,Job,Salary
+John,25,Engineer,75000
+Jane,30,Designer,65000
+Bob,28,Developer,80000
+Alice,27,Tester,55000`,
+                    expression: 'NR > 1 {print $1 "," $2 "," $4}',
+                    delimiter: ','
+                }
+            };
+            
+            if (examples[num]) {
+                document.getElementById('inputData').value = examples[num].data;
+                document.getElementById('awkExpression').value = examples[num].expression;
+                
+                // Set delimiter
+                const delimiterSelect = document.getElementById('delimiter');
+                delimiterSelect.value = examples[num].delimiter;
+                toggleCustomDelimiter();
+            }
+        }
+
+        // Toggle custom delimiter input
+        function toggleCustomDelimiter() {
+            const delimiterSelect = document.getElementById('delimiter');
+            const customInput = document.getElementById('customDelimiter');
+            
+            if (delimiterSelect.value === 'custom') {
+                customInput.style.display = 'inline-block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        document.getElementById('delimiter').addEventListener('change', toggleCustomDelimiter);
+
+        // Allow Enter key to execute in expression field
+        document.getElementById('awkExpression').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                executeAwk();
+            }
+        });
+    </script>
+</body>
+</html>
